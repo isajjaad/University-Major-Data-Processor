@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>University Major Data Processor</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        :root {
+            --primary-color: #3498db;
+            --secondary-color: #2980b9;
+            --success-color: #27ae60;
+            --success-hover: #219653;
+            --error-color: #e74c3c;
+            --text-color: #333;
+            --light-gray: #f5f5f5;
+            --border-color: #ddd;
+            --shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            line-height: 1.6;
+            color: var(--text-color);
+            background-color: #f9f9f9;
+        }
+        
+        .app-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: white;
+            box-shadow: var(--shadow);
+            min-height: 100vh;
+        }
+        
+        .header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .logo {
+            height: 80px;
+            margin-right: 25px;
+            border-radius: 4px;
+            box-shadow: var(--shadow);
+        }
+        
+        .header-text {
+            flex-grow: 1;
+        }
+        
+        .header h1 {
+            margin: 0;
+            color: var(--primary-color);
+            font-size: 28px;
+        }
+        
+        .header p {
+            margin: 8px 0 0;
+            color: #666;
+            font-size: 16px;
+        }
+        
+        .status-message {
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+            background-color: var(--light-gray);
+            border-left: 4px solid var(--primary-color);
+        }
+        
+        .status-message.error {
+            border-left-color: var(--error-color);
+            background-color: #fdecea;
+        }
+        
+        .status-message.success {
+            border-left-color: var(--success-color);
+            background-color: #e8f8f0;
+        }
+        
+        .filters {
+            margin: 25px 0;
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        
+        select, input {
+            padding: 10px;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            min-width: 200px;
+            font-size: 14px;
+            background-color: white;
+        }
+        
+        button {
+            padding: 10px 20px;
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+        
+        button:hover {
+            background-color: var(--secondary-color);
+            transform: translateY(-1px);
+        }
+        
+        button:disabled {
+            background-color: #95a5a6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .data-container {
+            max-height: 600px;
+            overflow-y: auto;
+            border: 1px solid var(--border-color);
+            border-radius: 5px;
+            box-shadow: var(--shadow);
+            margin-bottom: 20px;
+            position: relative;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        th, td {
+            border: 1px solid var(--border-color);
+            padding: 12px;
+            text-align: left;
+        }
+        
+        th {
+            background-color: var(--primary-color);
+            color: white;
+            position: sticky;
+            top: 0;
+            font-weight: 600;
+        }
+        
+        tr:nth-child(even) {
+            background-color: var(--light-gray);
+        }
+        
+        tr:hover {
+            background-color: #e8f4fc;
+        }
+        
+        .export-btn {
+            background-color: var(--success-color);
+            margin-top: 15px;
+        }
+        
+        .export-btn:hover {
+            background-color: var(--success-hover);
+        }
+        
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s ease-in-out infinite;
+            margin-left: 10px;
+            vertical-align: middle;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        @media (max-width: 768px) {
+            .header {
+                flex-direction: column;
+                text-align: center;
+            }
+            
+            .logo {
+                margin-right: 0;
+                margin-bottom: 15px;
+            }
+            
+            .filters {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            select, input {
+                width: 100%;
+                min-width: auto;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <div class="header">
+            <img src="https://scontent.ffjr1-1.fna.fbcdn.net/v/t1.6435-9/165614919_219130756386356_3856875523682902721_n.jpg?_nc_cat=105&ccb=1-7&_nc_sid=cc71e4&_nc_ohc=pbCXlydkSB0Q7kNvwFo0OBC&_nc_oc=AdmmRv4iCKjJfeMDYw-R5GOwbLoHPvnAkQIOZduybLj605hj8kZxU8c7OsXDOFQDd_4reNqmMmCa3iwANDxwiDb8&_nc_zt=23&_nc_ht=scontent.ffjr1-1.fna&_nc_gid=xL9kACEdL9ZArl38mn6DGQ&oh=00_AfIBE82aatj5Odh23ViksUZYMXfgLOhAPtMC6gtT9elfSA&oe=685EF364" 
+                alt="University Logo" class="logo">
+            <div class="header-text">
+                <h1>University Major Data Processor</h1>
+                <p>Automatically process and filter university major information from data.csv</p>
+            </div>
+        </div>
+        
+        <div id="statusMessage" class="status-message">
+            Loading data.csv...
+            <span class="loading"></span>
+        </div>
+        
+        <div class="filters">
+            <select id="countryFilter" disabled>
+                <option value="">All Countries</option>
+            </select>
+            <select id="universityFilter" disabled>
+                <option value="">All Universities</option>
+            </select>
+            <input type="text" id="majorSearch" placeholder="Search majors..." disabled>
+        </div>
+        
+        <div class="data-container">
+            <table id="dataTable">
+                <thead>
+                    <tr>
+                        <th>Country</th>
+                        <th>University</th>
+                        <th>Approved Major</th>
+                        <th>Specific Major</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td colspan="4" style="text-align: center;">Loading data...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        
+        <button onclick="exportData()" class="export-btn" id="exportBtn" disabled>
+            Export Filtered Data
+        </button>
+    </div>
+
+    <script>
+        let allData = [];
+        let isLoading = true;
+        
+        // Automatically load the CSV file when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            loadCSVFile();
+        });
+        
+        function loadCSVFile() {
+            updateStatus('Loading data from GitHub...');
+            
+            // Changed the fetch URL to the raw content URL of your GitHub CSV file
+            fetch('https://raw.githubusercontent.com/isajjaad/University-Major-Data-Processor/main/data.csv')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Could not load data from GitHub. Check URL or network connection.');
+                    }
+                    return response.text(); // Get the raw CSV text
+                })
+                .then(csvText => {
+                    // Directly read the CSV text into a workbook
+                    const workbook = XLSX.read(csvText, { type: 'string' });
+
+                    // Ensure there's at least one sheet and get its name (usually 'Sheet1' for CSVs)
+                    const sheetName = workbook.SheetNames[0]; 
+                    if (!sheetName) {
+                        throw new Error('No sheets found in the loaded CSV data. The CSV might be empty or malformed.');
+                    }
+
+                    processData(workbook, sheetName); // Pass the workbook and the sheet name
+                })
+                .catch(error => {
+                    console.error('Error loading CSV:', error);
+                    showFinalError(`Failed to load data: ${error.message}. Please ensure the file exists and is accessible.`);
+                });
+        }
+        
+        // Renamed from processExcelData to processData for clarity, as it now handles CSV parsed to a workbook
+        function processData(workbook, sheetName) {
+            try {
+                // Convert the specified sheet to JSON
+                const jsonData = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]);
+                
+                // Process data - map columns
+                allData = jsonData.map(row => ({
+                    country: row['COUNTRY'] || '',
+                    university: row['UNIVERSITY'] || '',
+                    approvedMajor: row['Approved Major'] || '',
+                    specificMajor: row['Specific Major as Listed by University'] || ''
+                }));
+                
+                if (allData.length === 0) {
+                    throw new Error('No data records found in the file after processing.');
+                }
+                
+                updateStatus(`Successfully loaded ${allData.length} records`, 'success');
+                displayData(allData);
+                updateFilters(allData);
+                document.getElementById('exportBtn').disabled = false;
+                isLoading = false;
+            } catch (error) {
+                showFinalError(`Error processing data: ${error.message}`);
+            }
+        }
+        
+        function updateStatus(message, type = '') {
+            const statusElement = document.getElementById('statusMessage');
+            statusElement.innerHTML = message;
+            statusElement.className = 'status-message ' + type;
+            
+            // Check if the loading spinner exists before trying to access its style
+            const loadingSpinner = statusElement.querySelector('.loading');
+            if (loadingSpinner) { 
+                loadingSpinner.style.display = type === 'success' || type === 'error' ? 'none' : 'inline-block';
+            }
+        }
+        
+        function showFinalError(message) {
+            isLoading = false;
+            updateStatus(message, 'error');
+            
+            // Enable filters but show no data in the table if there's an error
+            document.querySelectorAll('.filters select, .filters input').forEach(el => {
+                el.disabled = false;
+            });
+            
+            const tableBody = document.querySelector('#dataTable tbody');
+            tableBody.innerHTML = '<tr><td colspan="4" style="text-align: center;">No data available due to loading error</td></tr>';
+        }
+        
+        function displayData(data) {
+            const tableBody = document.querySelector('#dataTable tbody');
+            tableBody.innerHTML = '';
+            
+            if (data.length === 0) {
+                const tr = document.createElement('tr');
+                tr.innerHTML = '<td colspan="4" style="text-align: center;">No data found matching your criteria</td>';
+                tableBody.appendChild(tr);
+            } else { 
+                data.forEach(row => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td>${escapeHtml(row.country)}</td>
+                        <td>${escapeHtml(row.university)}</td>
+                        <td>${escapeHtml(row.approvedMajor)}</td>
+                        <td>${escapeHtml(row.specificMajor)}</td>
+                    `;
+                    tableBody.appendChild(tr);
+                });
+                // Hide the loading spinner once data is successfully displayed
+                const loadingSpinner = document.querySelector('#statusMessage .loading');
+                if (loadingSpinner) {
+                    loadingSpinner.style.display = 'none'; 
+                }
+            }
+            // Ensure spinner is hidden if no data is found after filtering, and it's not still loading initially.
+            if (data.length === 0 && !isLoading) {
+                 const loadingSpinner = document.querySelector('#statusMessage .loading');
+                 if (loadingSpinner) {
+                    loadingSpinner.style.display = 'none';
+                 }
+            }
+        }
+        
+        function updateFilters(data) {
+            const countryFilter = document.getElementById('countryFilter');
+            const universityFilter = document.getElementById('universityFilter');
+            const majorSearch = document.getElementById('majorSearch');
+            
+            // Enable all filters
+            countryFilter.disabled = false;
+            universityFilter.disabled = false;
+            majorSearch.disabled = false;
+            
+            // Get unique countries
+            const countries = [...new Set(data.map(item => item.country))].filter(Boolean).sort();
+            // Get unique universities
+            const universities = [...new Set(data.map(item => item.university))].filter(Boolean).sort();
+            
+            // Update country filter
+            countryFilter.innerHTML = '<option value="">All Countries</option>';
+            countries.forEach(country => {
+                const option = document.createElement('option');
+                option.value = country;
+                option.textContent = country;
+                countryFilter.appendChild(option);
+            });
+            
+            // Update university filter
+            universityFilter.innerHTML = '<option value="">All Universities</option>';
+            universities.forEach(university => {
+                const option = document.createElement('option');
+                option.value = university;
+                option.textContent = university;
+                universityFilter.appendChild(option);
+            });
+            
+            // Add event listeners for filtering
+            countryFilter.onchange = filterTable;
+            universityFilter.onchange = filterTable;
+            majorSearch.onkeyup = filterTable; // Live search as user types
+        }
+        
+        function filterTable() {
+            if (isLoading) return;
+            
+            const countryFilter = document.getElementById('countryFilter').value.toLowerCase();
+            const universityFilter = document.getElementById('universityFilter').value.toLowerCase();
+            const majorSearch = document.getElementById('majorSearch').value.toLowerCase();
+            
+            const filteredData = allData.filter(row => {
+                return (countryFilter === '' || (row.country && row.country.toLowerCase().includes(countryFilter))) &&
+                       (universityFilter === '' || (row.university && row.university.toLowerCase().includes(universityFilter))) &&
+                       (majorSearch === '' || 
+                        (row.approvedMajor && row.approvedMajor.toLowerCase().includes(majorSearch)) || 
+                        (row.specificMajor && row.specificMajor.toLowerCase().includes(majorSearch)));
+            });
+            
+            displayData(filteredData);
+        }
+        
+        function exportData() {
+            if (allData.length === 0 || isLoading) {
+                alert('No data to export or data is still loading.');
+                return;
+            }
+            
+            // Get currently filtered data (what's visible in the table)
+            const tableRows = document.querySelectorAll('#dataTable tbody tr');
+            const filteredData = Array.from(tableRows)
+                .filter(row => row.cells.length === 4) // Skip "no data" rows
+                .map(row => {
+                    const cells = row.querySelectorAll('td');
+                    return {
+                        COUNTRY: cells[0].textContent,
+                        UNIVERSITY: cells[1].textContent,
+                        'Approved Major': cells[2].textContent,
+                        'Specific Major as Listed by University': cells[3].textContent
+                    };
+                });
+            
+            if (filteredData.length === 0) {
+                alert('No data to export with current filters.');
+                return;
+            }
+            
+            // Create worksheet
+            const ws = XLSX.utils.json_to_sheet(filteredData);
+            // Create workbook
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Filtered Data");
+            // Export
+            XLSX.writeFile(wb, 'filtered_university_data.xlsx');
+        }
+        
+        function escapeHtml(unsafe) {
+            if (!unsafe) return '';
+            return unsafe.toString()
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+    </script>
+</body>
+</html>
